@@ -1,0 +1,17 @@
+# Python stuff
+__pycache__/
+*.py[cod]
+venv/
+.idea/
+
+# Database files (Heavy!)
+*.db
+*.duckdb
+*.sqlite
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Results (אופציונלי - אם אתה רוצה לשמור את התוצאות בגיט תמחק את השורה מתחת)
+# results/
