@@ -17,56 +17,89 @@ def generate_graphs():
     if not os.path.exists("graphs"):
         os.makedirs("graphs")
 
+    # מיפוי שמות יפים למקרא (כמו בתמונה ששלחת)
+    # המפתח הוא השם בקוד, הערך הוא השם שיופיע בגרף
+    name_mapping = {
+        "DuckDB": "DuckDB",
+        "SQLite_No_Index": "SQLite",
+        "SQLite_With_Index": "SQLite+Index"
+    }
+
     # קבלת רשימת השאילתות שהורצו
     queries = df['Query'].unique()
     queries.sort()
 
-    print("Generating graphs for each query...")
+    print(f"Generating graphs for {len(queries)} queries...")
 
-    # --- חלק 1: גרף לכל שאילתה ---
+    # לולאה על כל שאילתה ושאילתה
     for q_id in queries:
         plt.figure(figsize=(10, 6))
 
-        # סינון לפי שאילתה
+        # סינון הנתונים לשאילתה הנוכחית
         q_data = df[df['Query'] == q_id]
 
         # ציור קו לכל קונפיגורציה
-        for config in q_data['Configuration'].unique():
-            subset = q_data[q_data['Configuration'] == config].sort_values('SF')
-            plt.plot(subset['SF'], subset['Time'], marker='o', label=config)
+        # הסדר חשוב כדי שהצבעים יהיו קבועים (DuckDB ראשון, וכו')
+        configurations = ["DuckDB", "SQLite_No_Index", "SQLite_With_Index"]
 
-        plt.title(f'TPC-H Query {q_id} Performance')
-        plt.xlabel('Scale Factor (SF)')
-        plt.ylabel('Time (Seconds) - Log Scale')
-        plt.legend()
-        plt.grid(True)
+        for config in configurations:
+            # בדיקה אם הקונפיגורציה הזו קיימת בתוצאות של השאילתה הזו
+            if config in q_data['Configuration'].unique():
+                subset = q_data[q_data['Configuration'] == config].sort_values('SF')
 
-        # שימוש בסקאלה לוגריתמית כי DuckDB מהיר בהרבה מ-SQLite
-        plt.yscale('log')
+                # השם היפה למקרא
+                label_name = name_mapping.get(config, config)
+
+                # הציור עצמו: סקאלה ליניארית עם נקודות
+                plt.plot(subset['SF'], subset['Time'],
+                         marker='o',  # עיגולים בנקודות
+                         linewidth=2,  # עובי קו
+                         markersize=6,  # גודל נקודה
+                         label=label_name)  # השם במקרא
+
+        # עיצוב הגרף כמו בתמונה
+        plt.title(f'Query {q_id} Performance Comparison', fontsize=14, fontweight='bold')
+        plt.xlabel('Scale Factor (SF)', fontsize=12)
+        plt.ylabel('Execution Time (seconds)', fontsize=12)
+
+        # המקרא (בצד שמאל למעלה)
+        plt.legend(loc='upper left', frameon=True, fontsize=10)
+
+        # רשת עדינה ברקע
+        plt.grid(True, linestyle='-', alpha=0.3)
+
+        # גבולות צירים - מתחילים מ-0 כדי להיראות כמו בתמונה
+        plt.xlim(left=0)
+        plt.ylim(bottom=0)
 
         # שמירה
-        plt.savefig(f"graphs/query_{q_id}.png")
+        plt.tight_layout()
+        plt.savefig(f"graphs/query_{q_id}.png", dpi=100)
         plt.close()
 
-    # --- חלק 2: גרף מסכם (ממוצע) ---
+    # --- יצירת גרף מסכם (ממוצע) באותו עיצוב ---
     print("Generating summary graph...")
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(10, 6))
 
-    # חישוב ממוצע זמן ריצה לכל SF וקונפיגורציה (על פני כל השאילתות)
     summary = df.groupby(['Configuration', 'SF'])['Time'].mean().reset_index()
 
-    for config in summary['Configuration'].unique():
-        subset = summary[summary['Configuration'] == config].sort_values('SF')
-        plt.plot(subset['SF'], subset['Time'], marker='s', linestyle='--', linewidth=2, label=config)
+    for config in configurations:
+        if config in summary['Configuration'].unique():
+            subset = summary[summary['Configuration'] == config].sort_values('SF')
+            label_name = name_mapping.get(config, config)
 
-    plt.title('Average Query Execution Time (Summary)')
-    plt.xlabel('Scale Factor (SF)')
-    plt.ylabel('Average Time (Seconds) - Log Scale')
-    plt.legend()
-    plt.grid(True, which="both", ls="-")
-    plt.yscale('log')
+            plt.plot(subset['SF'], subset['Time'],
+                     marker='o', linewidth=2, label=label_name)
 
-    plt.savefig("graphs/summary_average.png")
+    plt.title('Average Query Performance (Summary)', fontsize=14, fontweight='bold')
+    plt.xlabel('Scale Factor (SF)', fontsize=12)
+    plt.ylabel('Average Time (seconds)', fontsize=12)
+    plt.legend(loc='upper left')
+    plt.grid(True, linestyle='-', alpha=0.3)
+    plt.xlim(left=0)
+    plt.ylim(bottom=0)
+
+    plt.savefig("graphs/summary_average.png", dpi=100)
     plt.close()
 
     print("Done! Graphs saved in 'graphs' folder.")
